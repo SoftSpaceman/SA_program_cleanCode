@@ -1,0 +1,400 @@
+
+
+### I detta projekt har jag använt mig av följande länkar: 
+[FastAPI](https://fastapi.tiangolo.com/tutorial/first-steps/)
+[github](https://github.com/a-appelblom/DS_22_resources/tree/main/lessons)
+
+skapar en pipenv: 
+    - laddar ner FastAPI, uvicorn
+
+Denna del är då en liten app som ger ett medelande via url i en browser.  
+
+from fastapi import FastAPI
+
+app = FastAPI()
+
+# detta är enligt fastapis tutorial. 
+@app.get("/")
+def root():
+    return{"message to the world: hello world!"}
+#--------------------------------------------
+
+
+
+PROJEKT secret_agents. 
+
+[X] Skapa en kontakt med databasen secret_agents / skapa databasen.
+[X] Skapa inehåll. 
+
+- importera fastapi 
+- skapa app
+- kör uvicorn
+http://127.0.0.1:8000/
+http://127.0.0.1:8000/doc
+http://127.0.0.1:8000/redoc
+
+[X] BASE routes
+    agent - get
+    agent - post
+    agent - delete
+    agent - update
+
+results: 
+[X] get http://127.0.0.1:8000/secret_agents
+[X] get http://127.0.0.1:8000/secret_agent/{id}
+[X] get http://127.0.0.1:8000/agents_secret_info
+[X] post http://127.0.0.1:8000/create_alias
+
+
+[X] post http://127.0.0.1:8000/create_agent
+        {
+        "first_name":  "" ,
+        "last_name":  "" ,
+        "age":  "" ,
+        "total_active_service_time": "" ,
+        "agent_alias":  ""
+        }
+
+[X] delete http://127.0.0.1:8000/delete_agent/{id}
+
+[X] put http://127.0.0.1:8000/update_agent
+        {
+        "first_name": "",
+        "last_name": "" ,
+        "age":  30,
+        "total_active_service_time": "",
+        "agent_alias": "",
+        "id": ""
+        }
+
+
+##MIN SKAPANDE PATH: 
+_________________________________________________________________________________________
+# ---------------DATABAS--Framework----------
+setup fil: db.sql
+    - detta är då ramverket för vad databsen ska inehålla för tables. 
+    + lite fake data = en fake agent. 
+#--------------------------------------------
+_________________________________________________________________________________________
+#------------DATABAS--functions-&-modelling--
+db.py
+- här skapar vi funktioner som gär det möjligt att exekvera db.sql ramverket och skapa en kontakt med datbasen.
+
+* FÖLJADNE KOD HAR VISAT SIG LITE SVÅR ATT FÖRSTÅ.  
+
+    def call_db(self, query, *args):
+        connection = sqlite3.connect(self.db_url)
+        cur = connection.cursor()
+        result = cur.execute(query, *args) 
+        data = result.fetchall()
+        cur.close()
+        connection.commit()
+        connection.close()
+        return data
+
+ Det tycks ha skapat alla möjliga typer av problem vad gäller insert och update av innehåll och exekvering av querys. 
+
+ En väldigt viktig del jag tar med mig är att när en query körs med hjälp av call_db likt: 
+ db.call_db(delete_query, id) Kan ERRORET som säger att:
+    - sqlite3.ProgrammingError: parameters are of unsupported type
+    ELLER 
+    - TypeError: execute() argument 1 must be str, not list
+
+    KAN ha att göra med att argumenten du försöker föra genom call_db är av dict format och måste skrivas likt följande: 
+ exemple: db.call_db(insert_query, todo.title, todo.description)
+ med dict:  db.call_db(insert_query, todo[title], todo[description])
+
+#-------------------------------------------
+
+
+________________________________________________________________________________________
+#-------API--comunication-------------------
+api.py
+    - här skapar vi routes som användaren kan använda för att hämta/ändra/lägga till data i databasen. 
+    - Här aktiveras uvicorn också.
+
+
+ - Alla routs funkar vid första steget.
+    - när det körs i thunder dyker min returtext upp i alla fall utom post. eftersom jag inte gett någon input. 
+            FÖRST STEGET tex.:   @app.get("/secret_agents")
+                                 def get_secret_agents():
+                                 return "alla agenters alias och om de är aktiva, alltså allt i table agents" # tex 007 
+
+ - POST ger error: "POST /create_agent HTTP/1.1" 422 Unprocessable Entity 
+ # detta fixas längre fram. 
+
+
+
+# HAR IMPORTERAT db från db.py och döpt det till DB. 
+- körde filen och fick ut min databas. 
+- nu ska jag få upp information från databsen i Thunder också.  
+
+
+NOTE: update av koden åvan efter att functionerna i db.py är skapade och chekade. 
+
+            @app.get("/secret_agents")
+            def get_secret_agents():
+                query = """
+                SELECT * FROM agents
+                """
+                agents = db.call_db(query)
+                return agents
+
+
+VIKTIGT. Det koden åvan ger användaren är en route som tar all info fårn table agents. 
+denna function är skriven i api.py och hämtar functionen som kallar på databsen call_db i db.py. 
+
+- koden begär en query från datbasen som skickas till funcitonen call_db i db.py exekvera och lagras i variabeln
+    agents i api.py filen. 
+- när användare anväder URL:en /secret_agents i browser eller thunder client ges informationen. 
+
+
+# Nu ser json filen ut såhär i thunder efter att ha kallat på all info från båda tablesen. 
+                                    [
+                                    [
+                                        1,
+                                        "000",
+                                        0,
+                                        1,
+                                        "john",
+                                        "Doe",
+                                        40,
+                                        "48:00:00",
+                                        "000"
+                                    ]
+                                    ]
+
++ Kan det vara så att med hjälp av en model från pydentic kan detta göras snyggare? 
+- samt göra det möjligt att lägga till? 
+
+
+
+
+# 18/02/23 
+- JAG har börajt pyssla med att lösa erroret som stökade till det när jag skulle försöka lägga till data i agents table. 
+- har börjat ändra i db.py def call.db 
+    - där ligger lite olika varianter utkomneterade. den som existerar fungerar med allt annat. 
+
+
+- När jag kör koden för att insert i thunderclient får jag erroret: 
+
+        File "C:\Users\Bananberg\Desktop\FINAL_assignment\API\api.py", line 90, in create_agent
+            db.call_db(insert_query, alias)
+        File "C:\Users\Bananberg\Desktop\FINAL_assignment\API\db.py", line 39, in call_db
+            result = cur.execute(query, args)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+        sqlite3.ProgrammingError: Error binding parameter 1: type 'new_alias' is not supported
+
+
+
+- efter lite mixtring med call_db funktionen fick jag error: 
+
+        File "C:\Users\Bananberg\Desktop\FINAL_assignment\API\api.py", line 90, in create_agent
+            db.call_db(insert_query, alias)
+        File "C:\Users\Bananberg\Desktop\FINAL_assignment\API\db.py", line 49, in call_db
+            result = cur.execute(query, (args,) )  #2 (str(args))    #1  *args)  nr 1 är oginalet.
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        sqlite3.ProgrammingError: Error binding parameter 1: type 'tuple' is not supported
+
+
+
+
+- efter lite mer mix fick jag denna: 
+
+            File "C:\Users\Bananberg\Desktop\FINAL_assignment\API\api.py", line 90, in create_agent
+                db.call_db(insert_query, alias)  File "C:\Users\Bananberg\Desktop\FINAL_assignment\API\db.py", line 49, in call_db
+                result = cur.execute(query, *args)  #2 (str(args))    #1  *args)  nr 1 är oginalet.
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+            sqlite3.ProgrammingError: parameters are of unsupported type
+
+
+- steget nu är att se hur antons post ser ut i lektion 9 och hans funktion insert i db filen. 
+- implemmentera den i min kod och se om allt funkar igen.. .
+
+
+
+20/02/2023
+- här blev en annan felkod när jag kallade på create funcitonen i request nu på morgonen. 
+
+            File "C:\Users\Bananberg\Desktop\FINAL_assignment\API\api.py", line 98, in create_agent
+                db.call_db(alias) # ta och kika vad han har gjort för funktion hans db.py lektion 9 som tillåter tuples?
+                ^^^^^^^^^^^^^^^^^
+            File "C:\Users\Bananberg\Desktop\FINAL_assignment\API\db.py", line 62, in call_db
+                result = cur.execute(query, args)  #2 (str(args))    #1  *args)  nr 1 är oginalet.
+                        ^^^^^^^^^^^^^^^^^^^^^^^^
+            TypeError: execute() argument 1 must be str, not new_alias
+
+
+Efter lite hjälp online lyckades jag lista ut att det inte var call.db som var felet.
+Utan att det krävdes en egen function:
+
+        def insert(self, *, table: str, fields: Dict[str, Union[str, bool]]):
+                keys = ",".join(fields.keys())
+                values = "','".join(str(v) for v in fields.values())
+
+                query = f"""
+                INSERT INTO {table} (
+                    {keys}
+                ) VALUES (
+                    '{values}'
+                )
+                """
+                return self.call_db(query)
+
+Tagen av Anton men modefierad så den ska kunna acceptera boolean värden. 
+    - nästa steg är att se om samma funkar med att skapa en hel agent? 
+
+* innan jag börajar med det. Anton gav mig en insikt om att 
+    - GLÖM ALDIRG ATT SPARA RESULTATET AV DIN QUERY I EN VARIABLE. 
+    - frågan är om det går att strunta i denna funktion åvan. 
+
+* Jag ska även testa att skala av onödig kod i funktionerna. 
+
+
+21/02/23 
+
+* Det gick att lägga till hela agents_secret_info columner eftersom koden accepterar information i listor
+    - och med hjälp av model classen. 
+
+* PUT applikation. 
+
+Detta error ges efter att försökt ha kört requesten:
+
+File "C:\Users\Bananberg\Desktop\FINAL_assignment\API\api.py", line 170, in update_agent
+            result = db.call_db(data)
+                    ^^^^^^^^^^^^^^^^
+        File "C:\Users\Bananberg\Desktop\FINAL_assignment\API\db.py", line 110, in call_db
+            result = cur.execute(query, args)  #2 (str(args))    #1  *args)  nr 1 är oginalet.
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+        TypeError: execute() argument 1 must be str, not list
+
+requesten: 
+
+    {
+            "first_name": "James",
+            "last_name": "Bond",
+            "age": "35",
+            "total_active_service_time": "00:00:00",
+            "agent_alias": "007",
+        "where": ["id", "2"]
+    }
+
+
+tillsammans med db.py functionen: 
+
+            def update(self, *, table: str, where: Tuple[str, str], fields: Dict[str, str]):
+                    where_key, where_val = where
+                    field_query = ""
+                    for key, val in fields.items():
+                        field_query += f"{key} = '{val}',"
+                    field_query = field_query[:-1]
+                    update_query = f"""
+                    UPDATE {table} SET {field_query} WHERE {where_key} = '{where_val}' 
+                    """
+                    print(update_query)
+                    return self.call_db(update_query)
+
+OCH api.py routen: 
+
+                        @app.put("/update_agent")
+                        def update_agent(update: new_agent): 
+                            data = db.update(
+                                table="agents_secret_info",
+                                fields={"first_name": update.first_name, "last_name": update.last_name,  "age": update.age, "total_active_service_time":update.total_active_service_time, "agent_alias": update.agent_alias },
+                                where=("id", str(update.id)),
+                            )
+                            print("updated agent")
+                            result = db.call_db(data)
+                            return result
+    
+
+# EFTER MYCKET OM OCH MEN LYCKADES JAG FÅ DET ATT FUNKA. 
+
+ * KOMBINATIONEN ÄR: 
+    
+    - så som functionen "update" ligger i filen db.py. 
+        - I den ordningen tillsammans med de andra functionerna tycks koden funka. 
+
+ -JSON body:n måste se ut som följande: 
+ {
+        "first_name": "James"  ,
+        "last_name":"Bond"   ,
+        "age":  30,
+        "total_active_service_time":"00000"  ,
+        "agent_alias": "007",
+        "id": 2
+      
+        }
+- Med id angivet i bodyn istället för uppe i URL:en. 
+
+#-------------------------------------------
+
+
+
+
+
+#-------MODELS----for-use-in-API-modding----
+models.py
+- Här skapar vi en request body som användare kan anväda sig av för att lägga till data. 
+    - det är som en model att förhålla sig efter och som berättar vad användaren kan lägga till i requests. 
+    - med hjälp av JSON. 
+
+#------------------------------------------
+
+
+
+#------------------------------------------
+#------------SEED.json---------------------
+# skapa ett gäng aliaser som sedan agenter kan kopplas till. 
+
+[
+
+ {
+        "first_name": "",
+        "last_name": "" ,
+        "age":  "",
+        "total_active_service_time": "",
+        "agent_alias": ""
+            
+    },
+    {
+        "alias_id": "",
+        "active": ""
+    }
+
+ ]
+
+
+#-----------------------------------------
+
+
+
+LINKS: 
+
+för framtida anvädning vid avläsning av tid tex. 
+https://fastapi.tiangolo.com/tutorial/extra-data-types/
+
+
+
+
+
+
+EFTER DEMO: 
+
+# routen http://127.0.0.1:8000/ 
+- som skulle visa allt från båda tables assignade alla agenter till samma alias från 001 - 010
+    - alla får 001 och alla får 002 osv osv. 
+    - alltså finns ingen relation mellan allias och id.. Min sql är fel.. 
+
+KVAR ATT FIXA: 
+
+lös databas relationerna så att det finns en kopling mellan aliaser och agenter. 
+    - de behöver kanske inte representeras i båda tables. 
+
+Lös en radering som raderar både, agent och alias! 
+
+Fixa funktion som visar om agenten är active eller ej i databsen. 
+
+Fixa en function som startar en timer. 
+
+Fixa en html sida för din API 
